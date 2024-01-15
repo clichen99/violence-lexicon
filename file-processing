@@ -1,0 +1,69 @@
+import numpy as np
+from collections import Counter
+import pandas as pd
+import csv
+import string
+import spacy
+
+# Load the English spaCy model
+nlp = spacy.load('en_core_web_sm')
+
+# Define the file paths
+input_file = "VideoCommentsThreatCorpus.txt"
+cleaned_output_file = "cleaned_comments.csv"
+uncleaned_output_file = "uncleaned_comments.csv"
+violent_uncleaned_output_file = "violent_uncleaned_comments.csv"  # New output file for violent uncleaned comments
+
+# Initialize lists to store cleaned data and violent comments
+video_list, comment_list, commenter_list, time_list, sentence_list, violence_list = [], [], [], [], [], []
+violent_comments = []
+violent_uncleaned_comments = []  # New list for violent uncleaned comments
+
+# Initialize variables to keep track of the current video, comment, and commenter
+current_video, current_comment, current_commenter = "", "", ""
+
+# Read and process the input file
+with open(input_file, 'r', encoding='utf-8') as file:
+    for line in file:
+        line = line.strip()
+        if line.startswith("Video #"):
+            current_video, current_comment, current_commenter, time_ago = line.split(', ')
+            current_video = current_video.split('#')[1]  # Extract the numeric part
+            current_comment = current_comment.split('#')[1]  # Extract the numeric part
+            current_commenter = current_commenter.split('#')[1]  # Extract the numeric part
+        elif line.startswith(("0\t", "1\t")):
+            parts = line.split('\t')
+            violence = int(parts[0])  # Convert the 0/1 to integer
+            sentence = parts[1]  # Keep the original casing and stopwords
+            video_list.append(current_video)
+            comment_list.append(current_comment)
+            commenter_list.append(current_commenter)
+            time_list.append(time_ago)
+            sentence_list.append(sentence)
+            violence_list.append(violence)
+
+            if violence == 1:  # Store violent comments for word frequency analysis
+                violent_comments.append(sentence)
+                violent_uncleaned_comments.append(sentence)  # Store violent uncleaned comments
+
+# Create a DataFrame to store the cleaned data
+cleaned_data = {
+    "video": video_list,
+    "comment": comment_list,
+    "commenter": commenter_list,
+    "time": time_list,
+    "sentence": sentence_list,
+    "violence": violence_list
+}
+cleaned_df = pd.DataFrame(cleaned_data)
+
+# Preprocess the "sentence" column in cleaned DataFrame
+cleaned_df["sentence"] = cleaned_df["sentence"].apply(lambda text: ' '.join([token.lemma_ for token in nlp(text) if not token.is_stop and token.is_alpha]))
+
+# Remove punctuation and special characters
+cleaned_df["sentence"] = cleaned_df["sentence"].apply(lambda text: text.translate(str.maketrans('', '', string.punctuation)))
+
+# Write the cleaned DataFrame to a CSV file
+cleaned_df.to_csv(cleaned_output_file, index=False, quoting=csv.QUOTE_MINIMAL)
+
+print(f"Cleaned data written to {cleaned_output_file}")
