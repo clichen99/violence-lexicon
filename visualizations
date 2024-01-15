@@ -1,0 +1,15 @@
+import matplotlib.pyplot as plt
+
+models = ['Random Forest', 'L2 Logistic Regression', 'Logistic Regression', 'Kernel SVM', 'Gradient Boost', 'XGBoost']
+f1_scores = [0.86, 0.68, 0.67, 0.60, 0.65, 0.64]
+
+fig, ax = plt.subplots()
+ax.bar(models, f1_scores)
+
+ax.set_ylabel('F1 Score')
+ax.set_title('Model F1 Scores')
+ax.set_xticklabels(models, rotation=30, ha='right')
+
+plt.tight_layout()
+plt.savefig('f1_scores.png')
+print('Bar chart exported to f1_scores.png')
