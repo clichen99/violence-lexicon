@@ -1,0 +1,116 @@
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+
+# Calculate confusion matrix
+model_cm = confusion_matrix(y_test, y_test_pred)
+
+# Plot confusion matrix
+plt.figure()
+sns.heatmap(model_cm, annot=True, fmt="d")
+plt.title("Gradient Boost Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+
+# Print other metrics
+print("Accuracy:", test_accuracy)
+print("Precision:", test_precision)
+print("Recall:", test_recall)
+print("F1 Score:", test_f1)
+
+tn, fp, fn, tp = confusion_matrix(y_test, y_test_pred).ravel()
+
+print("True Negatives:", tn)
+print("False Positives:", fp)
+print("False Negatives:", fn)
+print("True Positives:", tp)
+
+# Dictionary to store metrics for each model
+model_metrics = {}
+
+for model in [rf_classifier, svm_classifier, lr_classifier, lsvm, logit]:
+
+    # Fit current model
+    model.fit(X_train, y_train)
+
+    # Generate predictions
+    y_train_pred = model.predict(X_train)
+    y_test_pred = model.predict(X_test)
+
+    # Calculate metrics
+    acc_train = accuracy_score(y_train, y_train_pred)
+    acc_test = accuracy_score(y_test, y_test_pred)
+
+    precision_train, recall_train, _, _ = precision_recall_fscore_support(y_train, y_train_pred, average='binary')
+    precision_test, recall_test, _, _ = precision_recall_fscore_support(y_test, y_test_pred, average='binary')
+
+    f1_train = f1_score(y_train, y_train_pred)
+    f1_test = f1_score(y_test, y_test_pred)
+
+    # Store into dictionary
+    model_name = model.__class__.__name__
+    model_metrics[model_name] = {
+        "Acc_Train": acc_train,
+        "Acc_Test": acc_test,
+        "F1_Train": f1_train,
+        "F1_Test": f1_test,
+        "Precision_Train": precision_train,
+        "Precision_Test": precision_test,
+       }
+
+# Convert dictionary to dataframe
+metrics_df = pd.DataFrame(model_metrics).T
+
+print(metrics_df)
+
+# XGBoost
+xgb_model = xgb.XGBClassifier(random_state=42)
+xgb_model.fit(X_train, y_train)
+xgb_pred = xgb_model.predict(X_test)
+
+# AdaBoost
+ada_model = AdaBoostClassifier(random_state=42)
+ada_model.fit(X_train, y_train)
+ada_pred = ada_model.predict(X_test)
+
+# Gradient Boosting
+gb_model = GradientBoostingClassifier(random_state=42)
+gb_model.fit(X_train, y_train)
+gb_pred = gb_model.predict(X_test)
+
+# Metrics
+xgb_acc = accuracy_score(y_test, xgb_pred)
+ada_acc = accuracy_score(y_test, ada_pred)
+gb_acc = accuracy_score(y_test, gb_pred)
+
+# Add to dictionary
+model_metrics['XGB'] = {'Acc_Test': xgb_acc}
+model_metrics['AdaBoost'] = {'Acc_Test': ada_acc}
+model_metrics['GBoost'] = {'Acc_Test': gb_acc}
+
+# XGBoost
+xgb_precision, xgb_recall, _, _ = precision_recall_fscore_support(y_test, xgb_pred, average='binary')
+xgb_f1 = f1_score(y_test, xgb_pred)
+
+print("XGBoost Testing Accuracy:", xgb_acc)
+print("XGBoost Testing Precision:", xgb_precision)
+print("XGBoost Testing Recall:", xgb_recall)
+print("XGBoost Testing F1:", xgb_f1)
+
+# AdaBoost
+ada_precision, ada_recall, _, _ = precision_recall_fscore_support(y_test, ada_pred, average='binary')
+ada_f1 = f1_score(y_test, ada_pred)
+
+print("AdaBoost Testing Accuracy:", ada_acc)
+print("AdaBoost Testing Precision:", ada_precision)
+print("AdaBoost Testing Recall:", ada_recall)
+print("AdaBoost Testing F1:", ada_f1)
+
+# Gradient Boost
+gb_precision, gb_recall, _, _ = precision_recall_fscore_support(y_test, gb_pred, average='binary')
+gb_f1 = f1_score(y_test, gb_pred)
+
+print("GBoost Testing Accuracy:", gb_acc)
+print("GBoost Testing Precision:", gb_precision)
+print("GBoost Testing Recall:", gb_recall)
+print("GBoost Testing F1:", gb_f1)
