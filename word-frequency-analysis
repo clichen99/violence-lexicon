@@ -1,0 +1,68 @@
+# Tokenize and count the words and 2-word phrases in violent comments
+all_text = ' '.join(violent_comments)
+doc = nlp(all_text)
+
+# Extract words and 2-word phrases
+tokens = [token.text for token in doc if not token.is_stop and token.is_alpha]
+phrases = [' '.join(tokens[i:i+2]) for i in range(len(tokens) - 1)]
+
+# Count the frequency of each word and 2-word phrase
+word_freq = Counter(tokens)
+phrase_freq = Counter(phrases)
+
+# Output the 20 most frequent words
+most_common_words = word_freq.most_common(50)
+
+# Output the 20 most frequent 2-word phrases
+most_common_phrases = phrase_freq.most_common(20)
+
+# Display the results
+print("\n20 Most Frequent Words in Violent Comments:")
+
+violence_lexicon = pd.read_csv("violence_lexicon.csv")
+lexicon_words = set(violence_lexicon["term"].tolist())
+
+# Load uncleaned comments
+violent_uncleaned_df = pd.read_csv("violent_uncleaned_comments.csv")
+violent_uncleaned_comments = violent_uncleaned_df["comment"].tolist()
+
+# Process comments
+violent_uncleaned_text = " ".join(violent_uncleaned_comments)
+violence_doc = nlp(violent_uncleaned_text)
+violent_words = set([token.text for token in violence_doc if not token.is_stop and token.is_alpha])
+
+# Find matches
+matched_words = lexicon_words & violent_words
+
+# Print statistics
+num_lexicon_words = len(lexicon_words)
+num_matched = len(matched_words)
+percentage = num_matched / num_lexicon_words * 100
+
+print(f"Number of lexicon words: {num_lexicon_words}")
+print(f"Number matched in violent comments: {num_matched}")
+print(f"Percentage matched: {percentage:.2f}%")
+
+from scipy import stats
+import random
+
+# Generate null distribution
+null_counts = []
+for i in range(1000):
+    random_words = random.sample(violent_words, len(lexicon_words))
+    null_matches = len(lexicon_words & set(random_words))
+    null_counts.append(null_matches)
+
+# Compare real matches
+num_matched = len(matched_words)
+p_value = (len([c for c in null_counts if c >= num_matched]) + 1) / (len(null_counts) + 1)
+
+print(f"Observed matches: {num_matched}")
+print(f"Mean null matches: {np.mean(null_counts):.1f}")
+print(f"p-value: {p_value:.3f}")
+for word, frequency in most_common_words:
+    print(f"{word}: {frequency}")
+
+print("\n20 Most Frequent 2-Word Phrases in Violent Comments:")
+for phrase, frequency in most_common_phrases:
+    print(f"{phrase}: {frequency}")
