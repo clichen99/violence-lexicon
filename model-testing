@@ -1,0 +1,122 @@
+from sklearn.model_selection import train_test_split
+from imblearn.over_sampling import RandomOverSampler
+import xgboost as xgb
+import random
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import precision_recall_fscore_support
+from sklearn.svm import SVC, LinearSVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+random_state = random.randint(0, 100)
+
+# Load csv files
+violence_lexicon_df = pd.read_csv("violence_lexicon.csv")
+cleaned_comments_df = pd.read_csv("cleaned_comments.csv")
+
+# Map 0 to non-violent and 1 to violent
+cleaned_comments_df["violence"] = cleaned_comments_df["violence"].map({0: 0, 1: 1})
+
+X = cleaned_comments_df["comment"]
+y = cleaned_comments_df["violence"]
+
+# Convert X and y to 2D arrays
+X = X.values.reshape(-1,1)
+y = y.values.reshape(-1,1)
+
+ros = RandomOverSampler(random_state=0)
+X_resampled, y_resampled = ros.fit_resample(X, y)
+
+# Split the dataset into 80% training and 20% testing
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, test_size=0.2, random_state=42)
+
+# Hyperparameter tuning for XGBoost
+param_grid_xgb = {
+    'learning_rate': [0.001, 0.01, 0.1, 0.2, 0.3],
+    'n_estimators': [50, 100, 150, 200],
+    'max_depth': [3, 4, 5, 6],
+    'min_child_weight': [1, 2, 3, 4]
+}
+
+xgb_classifier = xgb.XGBClassifier(random_state=42)
+
+grid_search_xgb = GridSearchCV(xgb_classifier, param_grid_xgb, cv=5, scoring='accuracy', n_jobs=-1)
+grid_search_xgb.fit(X_train, y_train)
+
+best_params_xgb = grid_search_xgb.best_params_
+best_estimator_xgb = grid_search_xgb.best_estimator_
+
+print("Best Hyperparameters for XGBoost:", best_params_xgb)
+
+#y_test_pred_best_xgb = best_estimator_xgb.predict(X_test)
+
+# Initialize Classifiers
+rf_classifier = RandomForestClassifier(random_state=42) # Random Forest
+svm_classifier = SVC(random_state=42) # SVM
+lr_classifier = LogisticRegression(random_state=42) # Logistic Regression
+lsvm = LinearSVC(C=1.0, random_state=42) # Linear SVM
+logit = LogisticRegression(penalty='l1', solver='saga', random_state=42) # Logistic Regression w/ L2
+
+# Hyperparameters for XGBoost: {'learning_rate': 0.3, 'max_depth': 4, 'min_child_weight': 3, 'n_estimators': 200}
+
+# Different models to test fit
+#model = xgb.XGBClassifier(learning_rate = 0.3, max_depth = 4, min_child_weight = 3, n_estimators = 200, random_state = 42)
+#model = rf_classifier.fit(X_train, y_train) # Non-cross validated classifier run
+#model = lr_classifier.fit(X_train, y_train)
+#model = svm_classifier.fit(X_train, y_train)
+#model = lsvm.fit(X_train, y_train)
+#model = logit.fit(X_train, y_train)
+#model = AdaBoostClassifier(random_state=42)
+#model = GradientBoostingClassifier(loss='deviance', learning_rate=0.1, n_estimators=100, subsample=1.0, criterion='friedman_mse', min_samples_split=2, min_samples_leaf=1, min_weight_fraction_leaf=0.0, max_depth=3, min_impurity_decrease=0.0, init=None, random_state=None, max_features=None, verbose=0, max_leaf_nodes=None, warm_start=False, validation_fraction=0.1, n_iter_no_change=None, tol=0.0001, ccp_alpha=0.0)
+model.fit(X_train, y_train)
+
+# Function to apply the "violence_lexicon" to YouTube comments
+def apply_lexicon(comment, lexicon_df):
+    terms = lexicon_df["term"].tolist()
+    weights = lexicon_df["weight"].tolist()
+    score = 0
+
+    comment = str(comment)  # Convert comment to a string
+
+    for term, weight in zip(terms, weights):
+        if term in comment:
+            score += weight
+
+    return score
+
+# Apply the lexicon to training and testing sets:
+X_train_scores = [apply_lexicon(comment, violence_lexicon_df) for comment in X_train]
+X_test_scores = [apply_lexicon(comment, violence_lexicon_df) for comment in X_test]
+
+# Classify comments as violent or non-violent based on the scores
+y_train_pred = model.predict(X_train)
+y_test_pred = model.predict(X_test)
+
+# Calculate accuracy and precision for both the training and testing sets:
+train_accuracy = accuracy_score(y_train, y_train_pred)
+test_accuracy = accuracy_score(y_test, y_test_pred)
+
+#train_precision = precision_score(y_train, y_train_pred)
+#test_precision = precision_score(y_test, y_test_pred)
+
+train_precision, train_recall, _, _ = precision_recall_fscore_support(y_train, y_train_pred, average='binary')
+test_precision, test_recall, _, _ = precision_recall_fscore_support(y_test, y_test_pred, average='binary')
+
+print("Training Accuracy:", train_accuracy)
+print("Testing Accuracy:", test_accuracy)
+
+print("Training Precision:", train_precision)
+print("Testing Precision:", test_precision)
+
+print("Training Recall:", train_recall)
+print("Testing Recall:", test_recall)
+
+# Replace accuracy calculations with
+train_f1 = f1_score(y_train, y_train_pred)
+test_f1 = f1_score(y_test, y_test_pred)
+
+print("Training F1:", train_f1)
+print("Testing F1:", test_f1)
