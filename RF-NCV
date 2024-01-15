@@ -1,0 +1,57 @@
+# Imports
+from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_validate
+from sklearn.metrics import make_scorer
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+
+# Random Forest Model
+rf = RandomForestClassifier(random_state=42)
+
+# Parameter Grid
+rf_params = {'n_estimators': [100, 200, 500],
+             'max_depth': [5, 8, 15],
+             'min_samples_split': [2, 5, 10]}
+
+# Cross validation split
+inner_cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+outer_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+# GridSearch cross validation
+rf_gridcv = GridSearchCV(estimator=rf, param_grid=rf_params, cv=inner_cv, scoring='f1')
+
+# Evaluation metrics
+scoring = {'accuracy': make_scorer(accuracy_score),
+           'precision': make_scorer(precision_score),
+           'recall': make_scorer(recall_score),
+           'f1': make_scorer(f1_score)}
+
+# Nested Cross Validation
+results = cross_validate(rf_gridcv, X_train, y_train,
+                         cv=outer_cv, scoring=scoring)
+
+# Print metrics
+print("Accuracy:", results['test_accuracy'].mean())
+print("Precision:", results['test_precision'].mean())
+print("Recall:", results['test_recall'].mean())
+print("F1 Score:", results['test_f1'].mean())
+
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Get RF model from cross_validate
+rf_model = rf_gridcv.estimator
+
+# Refit on full train data
+rf_model.fit(X_train, y_train)
+
+# Generate test predictions
+rf_test_pred = rf_model.predict(X_test)
+
+# Confusion matrix
+cm = confusion_matrix(y_test, rf_test_pred)
+
+plt.figure()
+sns.heatmap(cm, annot=True, fmt="d")
+plt.title("Random Forest Confusion Matrix")
+
+print(" Done")
